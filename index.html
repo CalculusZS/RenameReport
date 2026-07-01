@@ -1,58 +1,113 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>QIAGEN PDF Rename Tool</title>
 
-<!-- ✅ โหลด OCR -->
+<!-- ✅ OCR -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <style>
 body {
-    font-family: Arial;
-    background: #f4f6f7;
-    padding: 30px;
+    font-family: 'Segoe UI', Arial;
+    background: linear-gradient(135deg, #eef2f7, #d6e4f0);
+    margin: 0;
+    padding: 40px;
 }
-h2 { color:#2c3e50; }
+
+.container {
+    max-width: 600px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+h2 {
+    margin-top: 0;
+    color: #1f4e79;
+}
+
+input {
+    margin-top: 10px;
+}
+
 button {
-    padding: 10px 20px;
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
     background: #0078D4;
     color: white;
     border: none;
+    border-radius: 6px;
+    font-size: 16px;
     cursor: pointer;
 }
-button:hover { background:#005ea6; }
+
+button:hover {
+    background: #005ea6;
+}
+
 #log {
-    margin-top:20px;
-    background:#111;
-    color:#00ff9c;
-    padding:10px;
-    height:250px;
-    overflow:auto;
+    margin-top: 20px;
+    background: #111;
+    color: #00ff9c;
+    padding: 15px;
+    border-radius: 6px;
+    height: 250px;
+    overflow-y: auto;
+    font-size: 13px;
+}
+
+.progress {
+    margin-top: 15px;
+    background: #eee;
+    border-radius: 6px;
+    overflow: hidden;
+    height: 10px;
+}
+
+.bar {
+    height: 100%;
+    width: 0%;
+    background: #28a745;
+    transition: 0.3s;
 }
 </style>
-
 </head>
 
 <body>
 
+<div class="container">
+
 <h2>📄 QIAGEN PDF Rename Tool</h2>
 
 <input type="file" id="files" multiple>
-<br><br>
 
 <button onclick="processFiles()">▶ Rename & Download</button>
 
+<div class="progress"><div class="bar" id="bar"></div></div>
+
 <pre id="log"></pre>
+
+</div>
 
 <script>
 function log(msg){
-  document.getElementById("log").textContent += msg + "\n";
+  const logBox = document.getElementById("log");
+  logBox.textContent += msg + "\n";
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function updateProgress(p){
+  document.getElementById("bar").style.width = p + "%";
 }
 
 async function processFiles(){
   const files = document.getElementById("files").files;
+
+  let i = 0;
 
   for(let file of files){
 
@@ -71,9 +126,9 @@ async function processFiles(){
 
     console.log(text);
 
-    // ✅ ดึงข้อมูลแบบ robust (ใช้ได้กับ PDF ของคุณ)
+    // ✅ Extract แบบใช้ได้กับไฟล์คุณ
     let dateMatch = text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
-    let serialMatch = text.match(/\b\d{8}\b/);
+    let serialMatch = text.match(/\b\d{7,9}\b/);
 
     let product = "QIAstat-Dx_Analytical_Module";
 
@@ -89,7 +144,7 @@ async function processFiles(){
 
     log("✅ " + newName);
 
-    // ✅ download file
+    // ✅ download
     const blob = new Blob([file], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
 
@@ -99,6 +154,9 @@ async function processFiles(){
     a.click();
 
     URL.revokeObjectURL(url);
+
+    i++;
+    updateProgress((i/files.length)*100);
   }
 
   log("✅ DONE");
