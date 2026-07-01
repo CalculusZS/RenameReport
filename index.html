@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>QIAGEN FINAL TOOL</title>
+<title>QIAGEN FINAL FIX</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
@@ -26,10 +26,10 @@ button {
 <body>
 
 <div class="card">
-<h2>📄 QIAGEN Rename Tool (FINAL)</h2>
+<h2>📄 QIAGEN FINAL TOOL</h2>
 
 <input type="file" id="files" multiple>
-<button onclick="run()">▶ Rename & Download</button>
+<button id="btn" onclick="run()">▶ Rename & Download</button>
 
 <pre id="log"></pre>
 </div>
@@ -43,14 +43,22 @@ function log(msg){
 
 async function run(){
 
+ const btn=document.getElementById("btn");
+ btn.disabled = true;  // ✅ กันกดซ้ำ
+
  const files=document.getElementById("files").files;
+
+ if(files.length === 0){
+    log("❌ No file selected");
+    btn.disabled = false;
+    return;
+ }
 
  for(let file of files){
 
-  if(!file.name.endsWith(".pdf")) continue;
-
   log("Processing: "+file.name);
 
+  // ✅ OCR 1 ครั้งต่อไฟล์
   const worker=await Tesseract.createWorker();
   await worker.loadLanguage("eng");
   await worker.initialize("eng");
@@ -58,35 +66,27 @@ async function run(){
   const {data:{text}}=await worker.recognize(file);
   await worker.terminate();
 
-  log("---- OCR RAW ----");
-  log(text.substring(0,200));
+  log("---- OCR PREVIEW ----");
+  log(text.substring(0,150));
 
-  // ✅ STEP 1: ลบ space/จัด format
-  let clean=text.replace(/\s+/g," ");
+  // ✅ ดึงตัวเลขทั้งหมด
+  let numbers=text.match(/\d+/g);
 
-  // ✅ STEP 2: หา serial (เลขยาวสุด)
-  let numbers=clean.match(/\d+/g);
   let serial="UnknownSN";
-
   if(numbers){
     numbers.sort((a,b)=>b.length-a.length);
-    for(let n of numbers){
-      if(n.length>=7) {serial=n; break;}
-    }
+    serial=numbers.find(n => n.length >= 7) || "UnknownSN";
   }
 
-  // ✅ STEP 3: หา date (หา mm/dd/yyyy)
+  // ✅ หา date
   let date="UnknownDate";
-  let dateMatch=clean.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
+  let dateMatch=text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
 
   if(dateMatch){
-    try{
-      let d=new Date(dateMatch[0]);
-      date=d.toISOString().slice(0,10).replace(/-/g,"");
-    }catch{}
+    let d=new Date(dateMatch[0]);
+    date=d.toISOString().slice(0,10).replace(/-/g,"");
   }
 
-  // ✅ STEP 4: product FIX
   let product="QIAstat-Dx_Analytical_Module";
 
   let newName=`${date}_${product}_${serial}_ServiceReport.pdf`;
@@ -103,10 +103,11 @@ async function run(){
   a.click();
 
   URL.revokeObjectURL(url);
-
  }
 
  log("✅ DONE");
+
+ btn.disabled = false;
 }
 </script>
 
