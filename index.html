@@ -29,7 +29,7 @@ button {
 <h2>📄 QIAGEN FINAL TOOL</h2>
 
 <input type="file" id="files" multiple>
-<button id="btn" onclick="run()">▶ Rename & Download</button>
+<button onclick="run()">▶ Rename & Download</button>
 
 <pre id="log"></pre>
 </div>
@@ -43,14 +43,13 @@ function log(msg){
 
 async function run(){
 
- const btn=document.getElementById("btn");
- btn.disabled = true;  // ✅ กันกดซ้ำ
+ const input = document.getElementById("files");
 
- const files=document.getElementById("files").files;
+ // ✅ FIX: copy files array ก่อน async
+ const files = Array.from(input.files);
 
  if(files.length === 0){
-    log("❌ No file selected");
-    btn.disabled = false;
+    log("❌ กรุณาเลือกไฟล์ก่อน");
     return;
  }
 
@@ -58,59 +57,54 @@ async function run(){
 
   log("Processing: "+file.name);
 
-  // ✅ OCR 1 ครั้งต่อไฟล์
-  const worker=await Tesseract.createWorker();
+  const worker = await Tesseract.createWorker();
   await worker.loadLanguage("eng");
   await worker.initialize("eng");
 
-  const {data:{text}}=await worker.recognize(file);
+  const { data: { text } } = await worker.recognize(file);
   await worker.terminate();
 
   log("---- OCR PREVIEW ----");
-  log(text.substring(0,150));
+  log(text.substring(0,120));
 
-  // ✅ ดึงตัวเลขทั้งหมด
-  let numbers=text.match(/\d+/g);
+  // ✅ extract ใหม่แบบ robust
+  let numbers = text.match(/\d+/g);
 
-  let serial="UnknownSN";
+  let serial = "UnknownSN";
   if(numbers){
     numbers.sort((a,b)=>b.length-a.length);
-    serial=numbers.find(n => n.length >= 7) || "UnknownSN";
+    serial = numbers.find(n => n.length >= 7) || "UnknownSN";
   }
 
-  // ✅ หา date
-  let date="UnknownDate";
-  let dateMatch=text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
+  let date = "UnknownDate";
+  let dateMatch = text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
 
   if(dateMatch){
-    let d=new Date(dateMatch[0]);
-    date=d.toISOString().slice(0,10).replace(/-/g,"");
+    let d = new Date(dateMatch[0]);
+    date = d.toISOString().slice(0,10).replace(/-/g,"");
   }
 
-  let product="QIAstat-Dx_Analytical_Module";
+  let product = "QIAstat-Dx_Analytical_Module";
 
-  let newName=`${date}_${product}_${serial}_ServiceReport.pdf`;
+  let newName = `${date}_${product}_${serial}_ServiceReport.pdf`;
 
   log("✅ RESULT: "+newName);
 
   // ✅ download
-  const blob=new Blob([file],{type:"application/pdf"});
-  const url=URL.createObjectURL(blob);
+  const blob = new Blob([file], {type:"application/pdf"});
+  const url = URL.createObjectURL(blob);
 
-  const a=document.createElement("a");
-  a.href=url;
-  a.download=newName;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = newName;
   a.click();
 
   URL.revokeObjectURL(url);
  }
 
  log("✅ DONE");
-
- btn.disabled = false;
 }
 </script>
 
 </body>
 </html>
-``
