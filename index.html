@@ -2,20 +2,58 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>PDF Rename Tool</title>
+<title>QIAGEN PDF Rename Tool</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+    background: #f5f7fa;
+    padding: 30px;
+}
+h2 { color:#1b4f72; }
+button {
+    padding: 10px 20px;
+    background: #0078D4;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+button:hover { background:#005ea6; }
+#log {
+    margin-top:20px;
+    background:#111;
+    color:#00ff9c;
+    padding:10px;
+    height:250px;
+    overflow:auto;
+}
+.progress {
+    width:100%;
+    height:20px;
+    background:#ddd;
+    margin-top:10px;
+}
+.bar {
+    height:100%;
+    width:0%;
+    background:#28a745;
+}
+</style>
 
 </head>
 
 <body>
 
-<h2>📄 Upload PDF</h2>
+<h2>📄 QIAGEN PDF Rename Tool</h2>
 
 <input type="file" id="files" multiple>
 <br><br>
 
-<button onclick="processFiles()">▶️ Rename & Download</button>
+<button onclick="processFiles()">▶ Rename & Download</button>
+
+<div class="progress"><div class="bar" id="bar"></div></div>
 
 <pre id="log"></pre>
 
@@ -24,15 +62,23 @@ function log(msg){
   document.getElementById("log").textContent += msg + "\n";
 }
 
+function updateProgress(p){
+  document.getElementById("bar").style.width = p + "%";
+}
+
 async function processFiles(){
   const files = document.getElementById("files").files;
 
+  let i = 0;
+
   for(let file of files){
+
     if(!file.name.toLowerCase().endsWith(".pdf")) continue;
 
     log("Processing: " + file.name);
 
     const worker = await Tesseract.createWorker();
+
     await worker.loadLanguage('eng');
     await worker.initialize('eng');
 
@@ -40,27 +86,29 @@ async function processFiles(){
 
     await worker.terminate();
 
-    // ✅ Extract
-    let start = text.match(/Start Date\s*(.*)/);
-    let product = text.match(/Product\s*(.*)/);
-    let serial = text.match(/Serial Number\s*(\d+)/);
+    console.log(text);
 
-    start = start ? start[1].trim() : "";
-    product = product ? product[1].trim().replaceAll(" ", "_") : "";
+    // ✅ OCR Extract (ปรับแม่นขึ้น)
+    let start = text.match(/Start Date[\s\S]{0,50}?(\d{1,2}\/\d{1,2}\/\d{4})/);
+    let serial = text.match(/Serial\s*Number[\s\S]{0,20}?(\d+)/);
+    let product = text.match(/QIAstat[-\sA-Za-z]+/);
+
+    start = start ? start[1] : "";
     serial = serial ? serial[1] : "";
+    product = product ? product[0].replace(/\s+/g,"_") : "";
 
-    // ✅ format date
+    // ✅ Date format
     let date = "UnknownDate";
-    try{
-      let d = new Date(start);
-      date = d.toISOString().slice(0,10).replace(/-/g,"");
-    }catch{}
+    try {
+        let d = new Date(start);
+        date = d.toISOString().slice(0,10).replace(/-/g,"");
+    } catch {}
 
     let newName = `${date}_${product}_${serial}_ServiceReport.pdf`;
 
-    log("👉 New Name: " + newName);
+    log("👉 " + newName);
 
-    // ✅ สร้างไฟล์ download
+    // ✅ download file
     const blob = new Blob([file], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
 
@@ -70,6 +118,9 @@ async function processFiles(){
     a.click();
 
     URL.revokeObjectURL(url);
+
+    i++;
+    updateProgress((i/files.length)*100);
   }
 
   log("✅ DONE");
@@ -78,3 +129,4 @@ async function processFiles(){
 
 </body>
 </html>
+``
