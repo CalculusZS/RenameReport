@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 <meta charset="UTF-8">
 <title>QIAGEN PDF Rename Tool</title>
 
+<!-- ✅ โหลด OCR -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <style>
 body {
     font-family: Arial;
-    background: #f5f7fa;
+    background: #f4f6f7;
     padding: 30px;
 }
-h2 { color:#1b4f72; }
+h2 { color:#2c3e50; }
 button {
     padding: 10px 20px;
     background: #0078D4;
@@ -29,17 +31,6 @@ button:hover { background:#005ea6; }
     height:250px;
     overflow:auto;
 }
-.progress {
-    width:100%;
-    height:20px;
-    background:#ddd;
-    margin-top:10px;
-}
-.bar {
-    height:100%;
-    width:0%;
-    background:#28a745;
-}
 </style>
 
 </head>
@@ -53,8 +44,6 @@ button:hover { background:#005ea6; }
 
 <button onclick="processFiles()">▶ Rename & Download</button>
 
-<div class="progress"><div class="bar" id="bar"></div></div>
-
 <pre id="log"></pre>
 
 <script>
@@ -62,14 +51,8 @@ function log(msg){
   document.getElementById("log").textContent += msg + "\n";
 }
 
-function updateProgress(p){
-  document.getElementById("bar").style.width = p + "%";
-}
-
 async function processFiles(){
   const files = document.getElementById("files").files;
-
-  let i = 0;
 
   for(let file of files){
 
@@ -88,25 +71,23 @@ async function processFiles(){
 
     console.log(text);
 
-    // ✅ OCR Extract (ปรับแม่นขึ้น)
-    let start = text.match(/Start Date[\s\S]{0,50}?(\d{1,2}\/\d{1,2}\/\d{4})/);
-    let serial = text.match(/Serial\s*Number[\s\S]{0,20}?(\d+)/);
-    let product = text.match(/QIAstat[-\sA-Za-z]+/);
+    // ✅ ดึงข้อมูลแบบ robust (ใช้ได้กับ PDF ของคุณ)
+    let dateMatch = text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
+    let serialMatch = text.match(/\b\d{8}\b/);
 
-    start = start ? start[1] : "";
-    serial = serial ? serial[1] : "";
-    product = product ? product[0].replace(/\s+/g,"_") : "";
+    let product = "QIAstat-Dx_Analytical_Module";
 
-    // ✅ Date format
     let date = "UnknownDate";
-    try {
-        let d = new Date(start);
+    if(dateMatch){
+        let d = new Date(dateMatch[0]);
         date = d.toISOString().slice(0,10).replace(/-/g,"");
-    } catch {}
+    }
+
+    let serial = serialMatch ? serialMatch[0] : "UnknownSN";
 
     let newName = `${date}_${product}_${serial}_ServiceReport.pdf`;
 
-    log("👉 " + newName);
+    log("✅ " + newName);
 
     // ✅ download file
     const blob = new Blob([file], { type: "application/pdf" });
@@ -118,9 +99,6 @@ async function processFiles(){
     a.click();
 
     URL.revokeObjectURL(url);
-
-    i++;
-    updateProgress((i/files.length)*100);
   }
 
   log("✅ DONE");
@@ -129,4 +107,3 @@ async function processFiles(){
 
 </body>
 </html>
-``
