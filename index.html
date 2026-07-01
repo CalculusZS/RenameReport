@@ -1,93 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>QIAGEN PDF Rename Tool</title>
+<title>QIAGEN Rename Tool (FINAL)</title>
 
-<!-- ✅ OCR -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <style>
 body {
-    font-family: 'Segoe UI', Arial;
-    background: linear-gradient(135deg, #eef2f7, #d6e4f0);
-    margin: 0;
+    font-family: Arial;
+    background: #eef2f7;
     padding: 40px;
 }
-
-.container {
+.card {
     max-width: 600px;
     margin: auto;
     background: white;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
 }
-
-h2 {
-    margin-top: 0;
-    color: #1f4e79;
-}
-
-input {
-    margin-top: 10px;
-}
-
 button {
-    margin-top: 20px;
     width: 100%;
     padding: 12px;
     background: #0078D4;
     color: white;
     border: none;
     border-radius: 6px;
+    margin-top: 10px;
     font-size: 16px;
-    cursor: pointer;
 }
-
-button:hover {
-    background: #005ea6;
-}
-
+button:hover {background:#005ea6;}
 #log {
-    margin-top: 20px;
-    background: #111;
-    color: #00ff9c;
-    padding: 15px;
-    border-radius: 6px;
-    height: 250px;
-    overflow-y: auto;
-    font-size: 13px;
-}
-
-.progress {
-    margin-top: 15px;
-    background: #eee;
-    border-radius: 6px;
-    overflow: hidden;
-    height: 10px;
-}
-
-.bar {
-    height: 100%;
-    width: 0%;
-    background: #28a745;
-    transition: 0.3s;
+    background:black;
+    color:#00ff9c;
+    padding:10px;
+    margin-top:15px;
+    height:200px;
+    overflow:auto;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="card">
 
 <h2>📄 QIAGEN PDF Rename Tool</h2>
 
 <input type="file" id="files" multiple>
 
-<button onclick="processFiles()">▶ Rename & Download</button>
-
-<div class="progress"><div class="bar" id="bar"></div></div>
+<button onclick="run()">▶ Rename & Download</button>
 
 <pre id="log"></pre>
 
@@ -95,57 +58,64 @@ button:hover {
 
 <script>
 function log(msg){
-  const logBox = document.getElementById("log");
-  logBox.textContent += msg + "\n";
-  logBox.scrollTop = logBox.scrollHeight;
+  let box = document.getElementById("log");
+  box.textContent += msg + "\n";
+  box.scrollTop = box.scrollHeight;
 }
 
-function updateProgress(p){
-  document.getElementById("bar").style.width = p + "%";
-}
+async function run(){
 
-async function processFiles(){
   const files = document.getElementById("files").files;
 
-  let i = 0;
+  for (let file of files){
 
-  for(let file of files){
-
-    if(!file.name.toLowerCase().endsWith(".pdf")) continue;
+    if(!file.name.endsWith(".pdf")) continue;
 
     log("Processing: " + file.name);
 
     const worker = await Tesseract.createWorker();
-
-    await worker.loadLanguage('eng');
-    await worker.initialize('eng');
+    await worker.loadLanguage("eng");
+    await worker.initialize("eng");
 
     const { data: { text } } = await worker.recognize(file);
 
     await worker.terminate();
 
-    console.log(text);
+    log("---- OCR ----");
+    log(text.substring(0,200));
 
-    // ✅ Extract แบบใช้ได้กับไฟล์คุณ
-    let dateMatch = text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
-    let serialMatch = text.match(/\b\d{7,9}\b/);
-
-    let product = "QIAstat-Dx_Analytical_Module";
-
+    // ✅ FIX: ไม่ใช้ regex ซับซ้อนอีกแล้ว
+    // 👉 ค้น date จาก "Start Date"
     let date = "UnknownDate";
-    if(dateMatch){
-        let d = new Date(dateMatch[0]);
-        date = d.toISOString().slice(0,10).replace(/-/g,"");
+
+    let lines = text.split("\n");
+    for(let l of lines){
+        if(l.toLowerCase().includes("start date")){
+            let d = l.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
+            if(d){
+                let dt = new Date(d[0]);
+                date = dt.toISOString().slice(0,10).replace(/-/g,"");
+                break;
+            }
+        }
     }
 
-    let serial = serialMatch ? serialMatch[0] : "UnknownSN";
+    // ✅ หา serial (เอาเลขยาวสุด)
+    let numbers = text.match(/\d{6,9}/g);
+    let serial = "UnknownSN";
+    if(numbers){
+        serial = numbers.sort((a,b)=>b.length-a.length)[0];
+    }
+
+    // ✅ product fix สำหรับ QIAGEN
+    let product = "QIAstat-Dx_Analytical_Module";
 
     let newName = `${date}_${product}_${serial}_ServiceReport.pdf`;
 
-    log("✅ " + newName);
+    log("✅ RESULT: " + newName);
 
     // ✅ download
-    const blob = new Blob([file], { type: "application/pdf" });
+    const blob = new Blob([file], {type:"application/pdf"});
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
@@ -155,8 +125,6 @@ async function processFiles(){
 
     URL.revokeObjectURL(url);
 
-    i++;
-    updateProgress((i/files.length)*100);
   }
 
   log("✅ DONE");
