@@ -3,15 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <title>PDF Rename Tool</title>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
 </head>
 
 <body>
 
-<h2>📂 เลือก Folder PDF</h2>
-<input type="file" id="folderInput" webkitdirectory multiple>
+<h2>📄 Upload PDF</h2>
+
+<input type="file" id="files" multiple>
 <br><br>
-<button onclick="processFiles()">▶️ Rename</button>
+
+<button onclick="processFiles()">▶️ Rename & Download</button>
 
 <pre id="log"></pre>
 
@@ -21,19 +25,22 @@ function log(msg){
 }
 
 async function processFiles(){
-  const files = document.getElementById("folderInput").files;
+  const files = document.getElementById("files").files;
 
   for(let file of files){
-    if(!file.name.endsWith(".pdf")) continue;
+    if(!file.name.toLowerCase().endsWith(".pdf")) continue;
 
     log("Processing: " + file.name);
 
-    // OCR
     const worker = await Tesseract.createWorker();
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
+
     const { data: { text } } = await worker.recognize(file);
+
     await worker.terminate();
 
-    // Extract
+    // ✅ Extract
     let start = text.match(/Start Date\s*(.*)/);
     let product = text.match(/Product\s*(.*)/);
     let serial = text.match(/Serial Number\s*(\d+)/);
@@ -42,7 +49,7 @@ async function processFiles(){
     product = product ? product[1].trim().replaceAll(" ", "_") : "";
     serial = serial ? serial[1] : "";
 
-    // Date
+    // ✅ format date
     let date = "UnknownDate";
     try{
       let d = new Date(start);
@@ -52,6 +59,17 @@ async function processFiles(){
     let newName = `${date}_${product}_${serial}_ServiceReport.pdf`;
 
     log("👉 New Name: " + newName);
+
+    // ✅ สร้างไฟล์ download
+    const blob = new Blob([file], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = newName;
+    a.click();
+
+    URL.revokeObjectURL(url);
   }
 
   log("✅ DONE");
