@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PDF Rename Tool</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4"></script>
+</head>
+
+<body>
+
+<h2>📂 เลือก Folder PDF</h2>
+<input type="file" id="folderInput" webkitdirectory multiple>
+<br><br>
+<button onclick="processFiles()">▶️ Rename</button>
+
+<pre id="log"></pre>
+
+<script>
+function log(msg){
+  document.getElementById("log").textContent += msg + "\n";
+}
+
+async function processFiles(){
+  const files = document.getElementById("folderInput").files;
+
+  for(let file of files){
+    if(!file.name.endsWith(".pdf")) continue;
+
+    log("Processing: " + file.name);
+
+    // OCR
+    const worker = await Tesseract.createWorker();
+    const { data: { text } } = await worker.recognize(file);
+    await worker.terminate();
+
+    // Extract
+    let start = text.match(/Start Date\s*(.*)/);
+    let product = text.match(/Product\s*(.*)/);
+    let serial = text.match(/Serial Number\s*(\d+)/);
+
+    start = start ? start[1].trim() : "";
+    product = product ? product[1].trim().replaceAll(" ", "_") : "";
+    serial = serial ? serial[1] : "";
+
+    // Date
+    let date = "UnknownDate";
+    try{
+      let d = new Date(start);
+      date = d.toISOString().slice(0,10).replace(/-/g,"");
+    }catch{}
+
+    let newName = `${date}_${product}_${serial}_ServiceReport.pdf`;
+
+    log("👉 New Name: " + newName);
+  }
+
+  log("✅ DONE");
+}
+</script>
+
+</body>
+</html>
