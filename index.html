@@ -2,42 +2,23 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>QIAGEN Rename Tool (FINAL)</title>
+<title>QIAGEN FINAL TOOL</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <style>
-body {
-    font-family: Arial;
-    background: #eef2f7;
-    padding: 40px;
-}
+body {font-family:Arial;background:#eef3f7;padding:40px;}
 .card {
-    max-width: 600px;
-    margin: auto;
-    background: white;
-    padding: 25px;
-    border-radius: 10px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+ max-width:600px;margin:auto;background:white;padding:25px;
+ border-radius:10px;box-shadow:0 10px 20px rgba(0,0,0,0.1);
 }
 button {
-    width: 100%;
-    padding: 12px;
-    background: #0078D4;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    margin-top: 10px;
-    font-size: 16px;
+ width:100%;padding:12px;background:#0078D4;color:white;
+ border:none;border-radius:6px;margin-top:10px;
 }
-button:hover {background:#005ea6;}
 #log {
-    background:black;
-    color:#00ff9c;
-    padding:10px;
-    margin-top:15px;
-    height:200px;
-    overflow:auto;
+ background:black;color:#00ff9c;padding:10px;
+ height:220px;overflow:auto;margin-top:15px;
 }
 </style>
 </head>
@@ -45,91 +26,90 @@ button:hover {background:#005ea6;}
 <body>
 
 <div class="card">
-
-<h2>📄 QIAGEN PDF Rename Tool</h2>
+<h2>📄 QIAGEN Rename Tool (FINAL)</h2>
 
 <input type="file" id="files" multiple>
-
 <button onclick="run()">▶ Rename & Download</button>
 
 <pre id="log"></pre>
-
 </div>
 
 <script>
 function log(msg){
-  let box = document.getElementById("log");
-  box.textContent += msg + "\n";
-  box.scrollTop = box.scrollHeight;
+ let box=document.getElementById("log");
+ box.textContent+=msg+"\n";
+ box.scrollTop=box.scrollHeight;
 }
 
 async function run(){
 
-  const files = document.getElementById("files").files;
+ const files=document.getElementById("files").files;
 
-  for (let file of files){
+ for(let file of files){
 
-    if(!file.name.endsWith(".pdf")) continue;
+  if(!file.name.endsWith(".pdf")) continue;
 
-    log("Processing: " + file.name);
+  log("Processing: "+file.name);
 
-    const worker = await Tesseract.createWorker();
-    await worker.loadLanguage("eng");
-    await worker.initialize("eng");
+  const worker=await Tesseract.createWorker();
+  await worker.loadLanguage("eng");
+  await worker.initialize("eng");
 
-    const { data: { text } } = await worker.recognize(file);
+  const {data:{text}}=await worker.recognize(file);
+  await worker.terminate();
 
-    await worker.terminate();
+  log("---- OCR RAW ----");
+  log(text.substring(0,200));
 
-    log("---- OCR ----");
-    log(text.substring(0,200));
+  // ✅ STEP 1: ลบ space/จัด format
+  let clean=text.replace(/\s+/g," ");
 
-    // ✅ FIX: ไม่ใช้ regex ซับซ้อนอีกแล้ว
-    // 👉 ค้น date จาก "Start Date"
-    let date = "UnknownDate";
+  // ✅ STEP 2: หา serial (เลขยาวสุด)
+  let numbers=clean.match(/\d+/g);
+  let serial="UnknownSN";
 
-    let lines = text.split("\n");
-    for(let l of lines){
-        if(l.toLowerCase().includes("start date")){
-            let d = l.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
-            if(d){
-                let dt = new Date(d[0]);
-                date = dt.toISOString().slice(0,10).replace(/-/g,"");
-                break;
-            }
-        }
+  if(numbers){
+    numbers.sort((a,b)=>b.length-a.length);
+    for(let n of numbers){
+      if(n.length>=7) {serial=n; break;}
     }
-
-    // ✅ หา serial (เอาเลขยาวสุด)
-    let numbers = text.match(/\d{6,9}/g);
-    let serial = "UnknownSN";
-    if(numbers){
-        serial = numbers.sort((a,b)=>b.length-a.length)[0];
-    }
-
-    // ✅ product fix สำหรับ QIAGEN
-    let product = "QIAstat-Dx_Analytical_Module";
-
-    let newName = `${date}_${product}_${serial}_ServiceReport.pdf`;
-
-    log("✅ RESULT: " + newName);
-
-    // ✅ download
-    const blob = new Blob([file], {type:"application/pdf"});
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = newName;
-    a.click();
-
-    URL.revokeObjectURL(url);
-
   }
 
-  log("✅ DONE");
+  // ✅ STEP 3: หา date (หา mm/dd/yyyy)
+  let date="UnknownDate";
+  let dateMatch=clean.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
+
+  if(dateMatch){
+    try{
+      let d=new Date(dateMatch[0]);
+      date=d.toISOString().slice(0,10).replace(/-/g,"");
+    }catch{}
+  }
+
+  // ✅ STEP 4: product FIX
+  let product="QIAstat-Dx_Analytical_Module";
+
+  let newName=`${date}_${product}_${serial}_ServiceReport.pdf`;
+
+  log("✅ RESULT: "+newName);
+
+  // ✅ download
+  const blob=new Blob([file],{type:"application/pdf"});
+  const url=URL.createObjectURL(blob);
+
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=newName;
+  a.click();
+
+  URL.revokeObjectURL(url);
+
+ }
+
+ log("✅ DONE");
 }
 </script>
 
 </body>
 </html>
+``
